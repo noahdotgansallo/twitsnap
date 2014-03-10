@@ -1,0 +1,22 @@
+{
+	"name":"pioneer/pioneer",
+	"type":"framework",
+	"description": "PHP MVC Framework made for new PHP developers to easily learn a new way of coding",
+	"keywords":["php", "MVC", "framework", "easy", "intuitive"],
+	"homepage":"https://github.com/elliotanderson13/PHPFramework",
+	"license": "MIT",
+	"authors": [
+		{
+			"name":"Elliot Anderson",
+			"email":"anderson.elliot3@gmail.com",
+			"homepage":"https://github.com/elliotanderson13",
+			"role":"Founder/Developer"
+		}
+	],
+	"require":{
+		"php": ">=5.3.0"
+	},
+	"autoload":{
+		
+	}
+}

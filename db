@@ -1,0 +1,99 @@
+#!/usr/bin/env php
+<?php
+
+// Inlcude the db Class
+
+include "app/config/database.php";
+
+$host = $dbCreds['host'];
+$userN = $dbCreds['user'];
+$pass = $dbCreds['password'];
+$database = $dbCreds['database'];
+
+try
+{
+	$conn = new PDO('mysql:host='.$host.';dbname='.$database, $userN, $pass);
+	$conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+} catch (PDOException $e)
+{
+	echo "ERROR: Database Not Configured";
+}
+
+// create the migrations table if it doesn't already
+// exist
+$create_migrations = "CREATE TABLE IF NOT EXISTS `migrations` (
+			id INT NOT NULL AUTO_INCREMENT,
+			name VARCHAR(100) NOT NULL,
+			original_name VARCHAR(60) NOT NULL,
+			created_at TIMESTAMP NULL,
+			migrated_at TIMESTAMP NULL,
+			PRIMARY KEY(id)
+			);";
+	$stmt = $conn->prepare($create_migrations);
+	$stmt->execute();
+if ($argv[1] == "make")
+{
+	$migration_name = $argv[2];
+
+	// Check to see if the file exists
+	$check_query = "SELECT * FROM migrations WHERE original_name='$migration_name'";
+	$stmt = $conn->prepare($check_query);
+	$stmt->execute();
+	$return = $stmt->fetch(PDO::FETCH_OBJ);
+	if (!empty($return->migrated_at))
+	{
+		$string = "\033[5m";
+		echo $string."ERROR: $migration_name is a duplicate migration"."\033[0m\n";
+
+	}
+	else
+	{
+		$time = date('Y-m-d H:i:s');
+		$contents = file_get_contents("app/library/Models/migrations.php");
+
+		// Let's make the database entry
+		$realname = $time.$migration_name;
+		$query = "INSERT INTO migrations (name, original_name, created_at) VALUES('$realname', '$migration_name', '$time')";
+		$stmt = $conn->prepare($query);
+		$stmt->execute();
+		// Create the file
+		$newName = $time.$migration_name;
+		file_put_contents("app/database/migrations/$newName.php", $contents);
+	}
+}
+
+elseif ($argv[1] == "migrate")
+{
+	$count = 0;
+	foreach(glob("app/database/migrations/*.php") as $file)
+	{
+		$file_parts = explode("/", $file);
+		end($file_parts);
+		$key = key($file_parts);
+		$file_name = $file_parts[$key];
+		$file_name = rtrim($file_name, ".php");
+		$query = "SELECT * FROM migrations WHERE name='$file_name'";
+		$stmt = $conn->prepare($query);
+		$stmt->execute();
+		$result = $stmt->fetch(PDO::FETCH_OBJ);
+		if (empty($result->migrated_at))
+		{
+			$result_id = $result->id;
+			// The file hasn't been migrated yet, so let's include it in there
+			include $file;
+			$add_migration_time = "UPDATE migrations SET migrated_at=NOW() WHERE id=$result_id";
+			$stmt = $conn->prepare($add_migration_time);
+			$stmt->execute();
+			$count++;
+			printf("Successfully migrated $file_name.\n");
+		}
+
+
+	}
+	if ($count == 0)
+		{
+			printf("Nothing to migrate.\n");
+		}
+}
+
+?>
